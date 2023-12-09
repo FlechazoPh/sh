@@ -229,7 +229,7 @@ add_dns_record() {
     while true; do
         read -p "请输入TTL值（例如：120）[默认为 1，自动]: " ttl
         if ! [[ "$ttl" =~ ^[0-9]+$ ]]; then
-            ttl=1
+            ttl= "1"
             break
         else
             ((ttl_attempts++))
