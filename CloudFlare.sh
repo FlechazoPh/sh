@@ -54,29 +54,29 @@ get_info() {
     fi
 }
 
-# 函数: 检查 API_KEY 和 EMAIL 是否为空值，如果为空则引导用户输入
-check_api_email() {
-    # 尝试从文件中读取已保存的 API_KEY 和 EMAIL
+# 函数: 检查 CF_Key 和 CF_Email 是否为空值，如果为空则引导用户输入
+check_api_CF_Email() {
+    # 尝试从文件中读取已保存的 CF_Key 和 CF_Email
     
     if [[ -f "$BASH_FILE/api_config.txt" ]]; then
         source "$BASH_FILE/api_config.txt"
-        if [[ -n "${API_KEY}" && -n "${EMAIL}" ]]; then
-            # 如果已存在 API_KEY 和 EMAIL，则继续执行脚本
+        if [[ -n "${CF_Key}" && -n "${CF_Email}" ]]; then
+            # 如果已存在 CF_Key 和 CF_Email，则继续执行脚本
             main_menu
         fi
     fi
 
-    # 如果 API_KEY 或 EMAIL 为空，则引导用户输入
-    while [[ -z "${API_KEY}" || -z "${EMAIL}" ]]; do
-        echo -e "${RED}API_KEY 或 EMAIL 为空值，请输入 Cloudflare 邮箱和 API 密钥.${NC}"
+    # 如果 CF_Key 或 CF_Email 为空，则引导用户输入
+    while [[ -z "${CF_Key}" || -z "${CF_Email}" ]]; do
+        echo -e "${RED}CF_Key 或 CF_Email 为空值，请输入 Cloudflare 邮箱和 API 密钥.${NC}"
         manage_api
 
-        # 保存 API_KEY 和 EMAIL 到文件中
-        echo "API_KEY=\"$API_KEY\"" > $BASH_FILE/api_config.txt
-        echo "EMAIL=\"$EMAIL\"" >> $BASH_FILE/api_config.txt
+        # 保存 CF_Key 和 CF_Email 到文件中
+        echo "CF_Key=\"$CF_Key\"" > $BASH_FILE/api_config.txt
+        echo "CF_Email=\"$CF_Email\"" >> $BASH_FILE/api_config.txt
     done
 
-    # 如果 API_KEY 和 EMAIL 非空，则继续执行脚本
+    # 如果 CF_Key 和 CF_Email 非空，则继续执行脚本
     main_menu
 }
 
@@ -85,8 +85,8 @@ check_api_email() {
 # 函数: 获取域名列表
 fetch_domain_list() {
     DOMAINS=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones" \
-        -H "X-Auth-Email: ${EMAIL}" \
-        -H "X-Auth-Key: ${API_KEY}" \
+        -H "X-Auth-CF_Email: ${CF_Email}" \
+        -H "X-Auth-Key: ${CF_Key}" \
         -H "Content-Type: application/json" | jq -r '.result[] | "\(.id) \(.name)"')
     echo "${DOMAINS}"
 }
@@ -95,8 +95,8 @@ fetch_domain_list() {
 fetch_dns_records() {
     local zone_id=$1
     RECORDS=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones/${zone_id}/dns_records" \
-        -H "X-Auth-Email: ${EMAIL}" \
-        -H "X-Auth-Key: ${API_KEY}" \
+        -H "X-Auth-CF_Email: ${CF_Email}" \
+        -H "X-Auth-Key: ${CF_Key}" \
         -H "Content-Type: application/json" | jq -r '.result[] | "\(.id) \(.name)"')
     echo "${RECORDS}"
 }
@@ -131,8 +131,8 @@ add_dns_record() {
 
     # 发送API请求来获取Zone ID
     ZONERESPONSE=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones?name=$SELECTED_DOMAIN" \
-    -H "X-Auth-Email: ${EMAIL}" \
-    -H "X-Auth-Key: ${API_KEY}" \
+    -H "X-Auth-CF_Email: ${CF_Email}" \
+    -H "X-Auth-Key: ${CF_Key}" \
     -H "Content-Type: application/json")
 
     if [[ -z "$ZONERESPONSE" ]]; then
@@ -276,8 +276,8 @@ EOF
 
     # 发送API请求来添加DNS记录
     DNSRESPONSE=$(curl -s -X POST "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records" \
-    -H "X-Auth-Email: ${EMAIL}" \
-    -H "X-Auth-Key: ${API_KEY}" \
+    -H "X-Auth-CF_Email: ${CF_Email}" \
+    -H "X-Auth-Key: ${CF_Key}" \
     -H "Content-Type: application/json" \
     --data "${json_data}")
 
@@ -345,8 +345,8 @@ delete_dns_record() {
 
         # 根据选择的DNS记录ID执行删除操作
         DELETE_RESPONSE=$(curl -s -X DELETE "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records/${SELECTED_RECORD}" \
-            -H "X-Auth-Email: ${EMAIL}" \
-            -H "X-Auth-Key: ${API_KEY}" \
+            -H "X-Auth-CF_Email: ${CF_Email}" \
+            -H "X-Auth-Key: ${CF_Key}" \
             -H "Content-Type: application/json")
         
         # 检查删除操作的响应
@@ -404,18 +404,18 @@ manage_api() {
     echo -e "${BLUE}============管理 Cloudflare 邮箱和 API密钥============${NC}"
 
     # 提示用户输入新的 Cloudflare 邮箱和 API 密钥
-    read -p "请输入新的 Cloudflare 邮箱地址: " new_email
-    read -p "请输入新的 Cloudflare API 密钥: " new_api_key
+    read -p "请输入新的 Cloudflare 邮箱地址: " new_CF_Email
+    read -p "请输入新的 Cloudflare API 密钥: " new_CF_Key
 
     # 在这里添加设置新的 Cloudflare 邮箱和 API 密钥的逻辑
-    # 示例：更新 API_KEY 和 EMAIL 变量
-    API_KEY="$new_api_key"
-    EMAIL="$new_email"
-    echo -e "${YELLOW}Cloudflare     新邮箱为: $EMAIL ${NC}"
-    echo -e "${YELLOW}Cloudflare API 新密钥为: $API_KEY ${NC}"
+    # 示例：更新 CF_Key 和 CF_Email 变量
+    CF_Key="$new_CF_Key"
+    CF_Email="$new_CF_Email"
+    echo -e "${YELLOW}Cloudflare     新邮箱为: $CF_Email ${NC}"
+    echo -e "${YELLOW}Cloudflare API 新密钥为: $CF_Key ${NC}"
     # 如果需要将更新后的值保存到脚本本身，请使用 sed 或其他适当的命令
-    sed -i "s/API_KEY=\"$API_KEY\"/API_KEY=\"$new_api_key\"/" "$0"
-    sed -i "s/EMAIL=\"$EMAIL\"/EMAIL=\"$new_email\"/" "$0"
+    sed -i "s/CF_Key=\"$CF_Key\"/CF_Key=\"$new_CF_Key\"/" "$0"
+    sed -i "s/CF_Email=\"$CF_Email\"/CF_Email=\"$new_CF_Email\"/" "$0"
 }
 
 
@@ -426,8 +426,8 @@ main_menu() {
     clear   
     
     while true; do
-        echo -e "${YELLOW}======Cloudflare     邮箱为: $EMAIL ${NC}"
-        echo -e "${YELLOW}======Cloudflare API 密钥为: $API_KEY ${NC}"
+        echo -e "${YELLOW}======Cloudflare     邮箱为: $CF_Email ${NC}"
+        echo -e "${YELLOW}======Cloudflare API 密钥为: $CF_Key ${NC}"
         echo -e "${BLUE}================ CloudFlare 域名管理脚本 ================${NC}"
         echo -e "${GREEN}1) =====================新增域名记录=====================${NC}"
         echo -e "${GREEN}2) =====================删除域名记录=====================${NC}"
@@ -459,7 +459,7 @@ main_menu() {
 # 检查APT和获取信息
 check_apt
 get_info
-check_api_email
+check_api_CF_Email
 
 # 这里添加退出循环的语句
 echo -e "${BLUE}已检查APT并获取信息。${NC}"
