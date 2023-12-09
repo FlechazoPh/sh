@@ -1,4 +1,5 @@
 #!/bin/bash
+#!/bin/bash
 #########################################注意注意注意注意注意############################################
 
 #蓝色
@@ -42,49 +43,52 @@ yellowbg(){
     echo -e "\033[33m\033[01m\033[05m[ $1 ]\033[0m"
 }
 
-
-
-# 获取当前主机名
 hostname=$(cat /etc/hostname)
 
+# 检查hostname，并修改相关
+check_hostname() {
+# 获取当前的主机名并显示
+     current_hostname=$(hostname)
+     echo "当前主机名为: $current_hostname"
+
 # 提示用户输入新的主机名
-echo "当前主机名为: $hostname"
-read -p "更改主机名称及登陆提示信息:" name
+     read -p "更改主机名称及登录提示信息:" name
+
+# 从 /etc/hosts 文件中提取主机名（考虑改进这部分）
+# 假设主机名在第二行
+     host=$(awk 'NR==2{split($0, arr, " "); print arr[2]}' /etc/hosts)
+     echo "hosts 为：$host"
+
+# 更新 /etc/hosts 文件，将旧的主机名替换为新的主机名
+     sudo sed -i "s/$host/$name/g" /etc/hosts
+
+# 设置新的主机名
+     sudo hostnamectl set-hostname "$name"
 
 # 更新 /etc/hostname 文件
-echo "$name" | sudo tee /etc/hostname
+     echo "$name" | sudo tee /etc/hostname
 
-# 更新 /etc/hosts 文件
-sudo sed -i "s/$hostname/$name/g" /etc/hosts
 
-# 更新主机名
-sudo hostnamectl set-hostname "$name"
+}
 
-# 检查是否已经修改了登录提示信息的主机名
-if grep -q "************************************************************************************************\n                                          $name\n************************************************************************************************" /etc/motd; then
-    red "登录提示信息的主机名已修改"
-    read -p "是否要再次修改登录提示信息的主机名？(y/n): " choice
-    if [[ $choice == "n" ]]; then
-        exit 1
+# 检查motd
+check_motd() {
+    if grep -q "************************************************************************************************\n                                          $hostname\n************************************************************************************************" /etc/motd; then
+        red "登录提示信息的主机名已修改"
+        read -p "是否要再次修改登录提示信息的主机名？(y/n): " choice
+        if [[ $choice == "n" ]]; then
+            exit 1
+        fi
+    else
+        change_motd_hostname
     fi
-fi
+}
 
+# 修改登录提示信息
+change_motd_hostname() {
 
-# 检查是否需要重新启动系统
-read -p "更改已完成。是否要重新启动系统以使更改生效？(y/n): " reboot_choice
-if [ "$reboot_choice" == "y" ]; then
-    sudo reboot
-else
-    echo "请手动重新启动系统以使更改生效。"
-fi
-
-
-
-
-
-
-
-cat << EOF > /etc/motd
+   
+   cat << EOF > /etc/motd
 ------------------------------------------------------------------------------------------------
  ┌───┐   ┌───┬───┬───┬───┐ ┌───┬───┬───┬───┐ ┌───┬───┬───┬───┐ ┌───┬───┬───┐
  │Esc│   │ F1│ F2│ F3│ F4│ │ F5│ F6│ F7│ F8│ │ F9│F10│F11│F12│ │P/S│S L│P/B│  ┌┐    ┌┐    ┌┐
@@ -103,8 +107,26 @@ cat << EOF > /etc/motd
 ------------------------------------------------------------------------------------------------
 
 ************************************************************************************************
-                                          $name
+                                          $hostname
 ************************************************************************************************
 EOF
 
 green "登录提示信息的主机名已成功修改"
+
+}
+
+# 主菜单函数
+main_menu() {
+
+    check_motd
+
+    read -p "更改已完成。是否要重新启动系统以使更改生效？(y/n): " reboot_choice
+    if [ "$reboot_choice" == "y" ]; then
+        sudo reboot
+    else
+        echo "请手动重新启动系统以使更改生效。"
+    fi
+}
+
+# 主程序
+main_menu
