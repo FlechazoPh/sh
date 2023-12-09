@@ -24,7 +24,7 @@ REMOTE_SERVER=""
 #cloud flare优选工具位置
 CloudflareST_FILE="$SCRIPT_DIR/cdn/CloudflareST"  # CloudflareST 的文件路径
 #cloud flare优选工具下载链接
-CloudflareST_LINE="https://github.com/XIU2/CloudflareSpeedTest/releases/download/v2.2.4/CloudflareST_linux_amd64.tar.gz"
+CloudflareST_LINE="https://github.com/XIU2/CloudflareSpeedTest/releases/download/v2.2.5/CloudflareST_linux_amd64.tar.gz"
 # 记录下载的压缩包位置
 downloaded_file="$SCRIPT_DIR/cdn/CloudflareST.tar.gz"
 #获取 Cloudflare CDN IPv4 地址段列表
@@ -328,6 +328,8 @@ check_network_status
 CONFIG
 # 函数：cloudflareST主程序IP文件
 CloudflareST_IP
+# 函数:检查CloudflareST主程序是否存在且给予权限
+CloudflareS
 # 函数：运行CloudflareST工具进行IP优选
 run_cloudflarest
 # 函数：提取优选IP信息
