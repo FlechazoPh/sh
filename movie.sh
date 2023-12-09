@@ -42,9 +42,21 @@ yellowbg(){
     echo -e "\033[33m\033[01m\033[05m[ $1 ]\033[0m"
 }
 
+# 获取脚本所在目录的绝对路径
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+#脚本主目录
+BASH_FILE="/BOX"
+
+
 # 设置证书路径和密码文件
 certificatePath="/BOX/jellyfin.pfx"
 certificatePasswordFile="/BOX/jellyfint.txt"
+
+# Cloudflare 设置
+CF_Email=""
+
+CF_Key=""
 
 # 配置 network.xml 文件
 networkXml="/etc/jellyfin/network.xml"
@@ -104,6 +116,20 @@ check_and_create_box_folder() {
     fi
 }
 
+# 检查acme.sh是否已下载和安装
+check_acme(){
+    if ! command -v acme.sh &> /dev/null; then
+    red "==================acme.sh 尚未安装=================="
+    curl https://get.acme.sh | sh
+    # 为acme.sh创建一个符号链接，这样可以从任何地方运行它
+    ln -s "/root/.acme.sh/acme.sh" /usr/local/bin/acme.sh
+    # 设置Let's Encrypt为默认的证书颁发机构
+    acme.sh --set-default-ca --server letsencrypt
+else
+    green "=========acme.sh 已安装，跳过下载和安装步骤========="
+fi
+}
+
 # 安装或检查Jellyfin
 check_jellyfin() {
 if ! command -v jellyfin &> /dev/null; then
@@ -122,12 +148,11 @@ if ! command -v jellyfin &> /dev/null; then
 
     # 添加存储库配置
     export VERSION_OS="$( awk -F'=' '/^ID=/{ print $NF }' /etc/os-release )"
-    export VERSION_CODENAME="$( awk -F'=' '/^VERSION_CODENAME=/{ print $NF }' /etc/os-release )"
     export DPKG_ARCHITECTURE="$( dpkg --print-architecture )"
     cat <<EOF | sudo tee /etc/apt/sources.list.d/jellyfin.sources
 Types: deb
 URIs: https://repo.jellyfin.org/${VERSION_OS}
-Suites: ${VERSION_CODENAME}
+Suites: bookworm
 Components: main
 Architectures: ${DPKG_ARCHITECTURE}
 Signed-By: /etc/apt/keyrings/jellyfin.gpg
@@ -150,6 +175,55 @@ check_and_generate_certificate() {
     else
         grey "===========证书已配置。跳过证书生成步骤。==========="
     fi
+}
+
+
+# 函数: 检查 CF_Key 和 CF_Email 是否为空值，如果为空则引导用户输入
+check_api_CF_Email() {
+    # 尝试从文件中读取已保存的 CF_Key 和 CF_Email
+    if [[ -f "$BASH_FILE/api_config.txt" ]]; then
+        source "$BASH_FILE/api_config.txt"
+        if [[ -n "${CF_Key}" && -n "${CF_Email}" ]]; then
+            # 如果已存在 CF_Key 和 CF_Email，则继续执行脚本
+            green "CF_Key 和 CF_Email 已存在，跳过执行脚本。"
+            return 0
+        fi
+    fi
+
+    # 如果 CF_Key 或 CF_Email 为空，则引导用户输入
+    while [[ -z "${CF_Key}" || -z "${CF_Email}" ]]; do
+        echo -e "${RED}CF_Key 或 CF_Email 为空值，请输入 Cloudflare 邮箱和 API 密钥.${NC}"
+        manage_api
+
+        # 保存 CF_Key 和 CF_Email 到文件中
+        echo "CF_Key=\"$CF_Key\"" > $BASH_FILE/api_config.txt
+        echo "CF_Email=\"$CF_Email\"" >> $BASH_FILE/api_config.txt
+    done
+
+    # 如果输入了 CF_Key 和 CF_Email，则执行剩余的脚本
+    return 1
+}
+
+
+
+
+# 管理 Cloudflare 邮箱和 API 密钥函数
+manage_api() {
+    echo -e "${BLUE}============管理 Cloudflare 邮箱和 API密钥============${NC}"
+
+    # 提示用户输入新的 Cloudflare 邮箱和 API 密钥
+    read -p "请输入新的 Cloudflare 邮箱地址: " new_CF_Email
+    read -p "请输入新的 Cloudflare API 密钥: " new_CF_Key
+
+    # 在这里添加设置新的 Cloudflare 邮箱和 API 密钥的逻辑
+    # 示例：更新 CF_Key 和 CF_Email 变量
+    CF_Key="$new_CF_Key"
+    CF_Email="$new_CF_Email"
+    echo -e "${YELLOW}Cloudflare     新邮箱为: $CF_Email ${NC}"
+    echo -e "${YELLOW}Cloudflare API 新密钥为: $CF_Key ${NC}"
+    # 如果需要将更新后的值保存到脚本本身，请使用 sed 或其他适当的命令
+    sed -i "s/CF_Key=\"$CF_Key\"/CF_Key=\"$new_CF_Key\"/" "$0"
+    sed -i "s/CF_Email=\"$CF_Email\"/CF_Email=\"$new_CF_Email\"/" "$0"
 }
 
 # 生成SSL证书
@@ -296,8 +370,12 @@ main() {
     start
     # 检查/生成BOX文件夹
     check_and_create_box_folder
+    # 检查acme.sh是否已下载和安装
+    check_acme
     # 安装或检查Jellyfin
     check_jellyfin
+    # 函数: 检查 CF_Key 和 CF_Email 是否为空值，如果为空则引导用户输入
+    check_api_CF_Email    
     # 调用检查证书是否存在并生成的函数
     check_and_generate_certificate
     # 提取密码
