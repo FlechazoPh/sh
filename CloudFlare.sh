@@ -227,9 +227,9 @@ add_dns_record() {
     # TTL 值验证
     ttl_attempts=0
     while true; do
-        read -p "请输入TTL值（例如：120）[默认为 120]: " ttl
+        read -p "请输入TTL值（例如：120）[默认为 1，自动]: " ttl
         if ! [[ "$ttl" =~ ^[0-9]+$ ]]; then
-            ttl=120
+            ttl=1
             break
         else
             ((ttl_attempts++))
