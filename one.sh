@@ -100,7 +100,7 @@ function app(){
 
 #卸载桌面环境自带游戏及软件
 function removeapt(){
-    sudo apt remove --purge gnome-2048 aisleriot gnome-chess five-or-more four-in-a-row gnome-nibbles hitori gnome-klotski libreoffice-* lightsoff gnome-mahjongg gnome-mines quadrapassel iagno gnome-robots gnome-sudoku swell-foop tali fcitx5-* gnome-taquin gnome-tetravex
+    sudo apt remove --purge -y gnome-2048 aisleriot gnome-chess five-or-more four-in-a-row gnome-nibbles hitori gnome-klotski libreoffice-* lightsoff gnome-mahjongg gnome-mines quadrapassel iagno gnome-robots gnome-sudoku swell-foop tali fcitx5-* gnome-taquin gnome-tetravex
 }
 
 # 科学代理协议安装及卸载管理
