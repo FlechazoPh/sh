@@ -54,9 +54,9 @@ certificatePath="/BOX/jellyfin.pfx"
 certificatePasswordFile="/BOX/jellyfint.txt"
 
 # Cloudflare 设置
-CF_Email=""
+export CF_Email=""
 
-CF_Key=""
+export CF_Key=""
 
 # 配置 network.xml 文件
 networkXml="/etc/jellyfin/network.xml"
@@ -91,7 +91,6 @@ stop_jellyfin() {
 start_jellyfin() {
     green "==================开始Jellyfin服务=================="
     sudo systemctl start jellyfin
-    sudo systemctl enable jellyfin
     blue "===================== 等待 3秒 ====================="
     sleep 3
 }
@@ -162,6 +161,8 @@ EOF
     # 更新您的 APT 存储库
     sudo apt update
     sudo apt install -y jellyfin
+
+    sudo systemctl enable jellyfin
 else
     grey "==========Jellyfin已经安装。跳过安装步骤。=========="
 fi
@@ -258,6 +259,8 @@ generate_ssl_certificate() {
     # 使用 acme.sh 获取证书
     acme.sh --issue --dns dns_cf -d "$domain" --keylength ec-256
 
+    generate_pfx_certificate "$domain"
+
     if [ $? -eq 0 ]; then
         green "=================SSL 证书获取成功。================="
         generate_pfx_certificate "$domain"
@@ -270,11 +273,26 @@ generate_ssl_certificate() {
 # 生成.pfx格式证书
 generate_pfx_certificate() {
     local domain=$1
-    green "================正在生成.pfx格式证书================"
+    green "================正在生成PKCS12格式证书================"
 
     # 生成.pfx格式证书
     Password=$(openssl rand -base64 12 | tr -dc 'a-zA-Z0-9' | head -c 8)
-    acme.sh --toPkcs -d "$domain" --password "$Password"  > "$certificatePath"
+
+
+    # acme.sh生成的证书和私钥文件路径
+    acme_certificate="/root/.acme.sh/${domain}_ecc/${domain}.cer"
+    acme_private_key="/root/.acme.sh/${domain}_ecc/${domain}.key"
+
+    # 使用变量引用
+    echo "证书文件路径：$acme_certificate"
+    echo "私钥文件路径：$acme_private_key"
+
+    # 使用 OpenSSL 生成 PKCS12 证书
+
+    openssl pkcs12 -export -out "$certificatePath" -inkey "$acme_private_key" -in "$acme_certificate" -passout pass:"$Password"
+
+    blue "生成PKCS12格式证书成功。存储路径为：$certificatePath"
+
 
     # 保存密码到文件
     echo "$Password" > "$certificatePasswordFile"
@@ -358,6 +376,8 @@ fi
 
 # 函数：配置完成
 over() {
+    sudo systemctl start jellyfin.service
+    sudo systemctl enable jellyfin
     purple "===================================================="
     purple "===============jellyfin已经配置完成。==============="
     purple "===================================================="
