@@ -48,6 +48,7 @@ setup_locales() {
     sudo apt-get update
     sudo apt-get install -y locales
 
+    echo 'zh_CN.UTF-8 UTF-8' | sudo tee -a /etc/locale.gen
     # 生成 en_US.UTF-8 和 zh_CN.UTF-8 两种 locales
     sudo locale-gen en_US.UTF-8 zh_CN.UTF-8
 
