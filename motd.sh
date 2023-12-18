@@ -117,7 +117,7 @@ green "登录提示信息的主机名已成功修改"
 
 # 主菜单函数
 main_menu() {
-
+    check_hostname
     check_motd
 
     read -p "更改已完成。是否要重新启动系统以使更改生效？(y/n): " reboot_choice
