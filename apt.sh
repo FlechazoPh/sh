@@ -39,7 +39,7 @@ command_exists() {
 
 # 安装函数
 install_packages() {
-    local packages=("sudo" "curl" "wget" "curl" "unzip" "jq" "gnupg" "net-tools" "lsof")
+    local packages=("sudo" "lsb-release" "curl" "wget" "curl" "unzip" "jq" "gnupg" "net-tools" "lsof")
 
     for package in "${packages[@]}"; do
         if command_exists "$package"; then
