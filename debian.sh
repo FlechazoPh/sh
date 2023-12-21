@@ -27,8 +27,8 @@ in_target() {
     done
 
     if [ -n "$command" ]; then
-        [ -z "$late_command" ] && late_command='true'
-        late_command="$late_command;$command"
+        [ -z "$in_target_script" ] && in_target_script='true'
+        in_target_script="$in_target_script;$command"
     fi
 }
 
@@ -111,10 +111,10 @@ set_mirror_proxy() {
 
 set_security_archive() {
     case $suite in
-        buster|oldoldstable|bullseye|oldstable)
+        buster|oldoldstable)
             security_archive="$suite/updates"
             ;;
-        bookworm|stable|trixie|testing)
+        bullseye|oldstable|bookworm|stable|trixie|testing)
             security_archive="$suite-security"
             ;;
         sid|unstable)
@@ -156,7 +156,7 @@ set_debian_version() {
             set_suite bookworm
             ;;
         13|trixie|testing)
-            set_suite trixie
+            set_suite bookworm
             ;;
         sid|unstable)
             set_suite sid
