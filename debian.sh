@@ -18,7 +18,7 @@ command_exists() {
 }
 
 # Sets variable:
-late_command=
+in_target_script=
 in_target() {
     local command=
 
