@@ -175,14 +175,14 @@ set_debian_version 12
 mirror_protocol=http
 mirror_host=deb.debian.org
 mirror_directory=/debian
-security_repository=http://security.debian.org/debian-security
+security_repository=mirror
 account_setup=true
 username=debian
 password=
 authorized_keys_url=
 sudo_with_password=false
 timezone=Asia/Shanghai
-ntp=0.debian.pool.ntp.org
+ntp=time.google.com
 disk_partitioning=true
 disk=
 force_gpt=true
