@@ -38,7 +38,7 @@ in_target_backup() {
 
 configure_sshd() {
     # !isset($sshd_config_backup)
-    [ -z "${sshd_config_backup+1s}" ] && in_target_backup /etc/ssh/sshd_config
+    [ -z ${sshd_config_backup+1s} ] && in_target_backup /etc/ssh/sshd_config
     sshd_config_backup=
     in_target sed -Ei \""s/^#?$1 .+/$1 $2/"\" /etc/ssh/sshd_config
 }
@@ -68,16 +68,6 @@ prompt_password() {
 }
 
 download() {
-    # Set "$http/https/ftp_proxy" with "$mirror_proxy"
-    # only when none of those have ever been set
-    [ -n "$mirror_proxy" ] &&
-    [ -z "${http_proxy+1s}" ] &&
-    [ -z "${https_proxy+1s}" ] &&
-    [ -z "${ftp_proxy+1s}" ] &&
-    export http_proxy="$mirror_proxy" &&
-    export https_proxy="$mirror_proxy" &&
-    export ftp_proxy="$mirror_proxy"
-
     if command_exists wget; then
         wget -O "$2" "$1"
     elif command_exists curl; then
@@ -89,32 +79,12 @@ download() {
     fi
 }
 
-# Set "$mirror_proxy" with "$http/https/ftp_proxy"
-# only when it is empty and one of those is not empty
-set_mirror_proxy() {
-    [ -n "$mirror_proxy" ] && return
-
-    case $mirror_protocol in
-        http)
-            if [ -n "${http_proxy+1s}" ]; then mirror_proxy="$http_proxy"; fi
-            ;;
-        https)
-            if [ -n "${https_proxy+1s}" ]; then mirror_proxy="$https_proxy"; fi
-            ;;
-        ftp)
-            if [ -n "${ftp_proxy+1s}" ]; then mirror_proxy="$ftp_proxy"; fi
-            ;;
-        *)
-            err "Unsupported protocol: $mirror_protocol"
-    esac
-}
-
 set_security_archive() {
     case $suite in
-        buster|oldoldstable|bullseye|oldstable)
+        stretch|oldoldstable|buster|oldstable)
             security_archive="$suite/updates"
             ;;
-        bookworm|stable|trixie|testing)
+        bullseye|stable|bookworm|testing)
             security_archive="$suite-security"
             ;;
         sid|unstable)
@@ -127,10 +97,10 @@ set_security_archive() {
 
 set_daily_d_i() {
     case $suite in
-        buster|oldoldstable|bullseye|oldstable|bookworm|stable)
+        stretch|oldoldstable|buster|oldstable|bullseye|stable)
             daily_d_i=false
             ;;
-        trixie|testing|sid|unstable)
+        bookworm|testing|sid|unstable)
             daily_d_i=true
             ;;
         *)
@@ -146,17 +116,17 @@ set_suite() {
 
 set_debian_version() {
     case $1 in
-        10|buster|oldoldstable)
+        9|stretch|oldoldstable)
+            set_suite stretch
+            ;;
+        10|buster|oldstable)
             set_suite buster
             ;;
-        11|bullseye|oldstable)
+        11|bullseye|stable)
             set_suite bullseye
             ;;
-        12|bookworm|stable)
+        12|bookworm|testing)
             set_suite bookworm
-            ;;
-        13|trixie|testing)
-            set_suite trixie
             ;;
         sid|unstable)
             set_suite sid
@@ -168,11 +138,14 @@ set_debian_version() {
 
 has_cloud_kernel() {
     case $suite in
-        buster|oldoldstable)
+        stretch|oldoldstable)
+            [ "$architecture" = amd64 ] && [ "$bpo_kernel" = true ] && return
+            ;;
+        buster|oldstable)
             [ "$architecture" = amd64 ] && return
             [ "$architecture" = arm64 ] && [ "$bpo_kernel" = true ] && return
             ;;
-        bullseye|oldstable|bookworm|stable|trixie|testing|sid|unstable)
+        bullseye|stable|bookworm|testing|sid|unstable)
             [ "$architecture" = amd64 ] || [ "$architecture" = arm64 ] && return
     esac
 
@@ -184,7 +157,7 @@ has_cloud_kernel() {
 
 has_backports() {
     case $suite in
-        buster|oldoldstable|bullseye|oldstable|bookworm|stable|trixie|testing) return
+        stretch|oldoldstable|buster|oldstable|bullseye|stable|bookworm|testing) return
     esac
 
     warn "No backports kernel is available for $suite"
@@ -192,7 +165,6 @@ has_backports() {
     return 1
 }
 
-interface=auto
 ip=
 netmask=
 gateway=
@@ -203,7 +175,6 @@ set_debian_version 12
 mirror_protocol=http
 mirror_host=deb.debian.org
 mirror_directory=/debian
-mirror_proxy=
 security_repository=http://security.debian.org/debian-security
 account_setup=true
 username=debian
@@ -211,12 +182,11 @@ password=
 authorized_keys_url=
 sudo_with_password=false
 timezone=Asia/Shanghai
-ntp=time.google.com
+ntp=0.debian.pool.ntp.org
 disk_partitioning=true
 disk=
 force_gpt=true
 efi=
-esp=106
 filesystem=ext4
 kernel=
 cloud_kernel=false
@@ -225,15 +195,14 @@ install_recommends=true
 install='ca-certificates libpam-systemd sudo wget curl'
 upgrade=
 kernel_params=
-force_lowmem=
 bbr=false
-ssh_port=
 hold=false
 power_off=false
 architecture=
+boot_directory=
 firmware=false
 force_efi_extra_removable=true
-grub_timeout=3
+grub_timeout=5
 dry_run=false
 
 while [ $# -gt 0 ]; do
@@ -249,10 +218,6 @@ while [ $# -gt 0 ]; do
             mirror_host=mirrors.aliyun.com
             ntp=ntp.aliyun.com
             security_repository=mirror
-            ;;
-        --interface)
-            interface=$2
-            shift
             ;;
         --ip)
             ip=$2
@@ -306,13 +271,6 @@ while [ $# -gt 0 ]; do
             mirror_directory=${2%/}
             shift
             ;;
-        --mirror-proxy|--proxy)
-            mirror_proxy=$2
-            shift
-            ;;
-        --reuse-proxy)
-            set_mirror_proxy
-            ;;
         --security-repository)
             security_repository=$2
             shift
@@ -346,11 +304,6 @@ while [ $# -gt 0 ]; do
         --no-part|--no-disk-partitioning)
             disk_partitioning=false
             ;;
-        --force-lowmem)
-            [ "$2" != 0 ] && [ "$2" != 1 ] && [ "$2" != 2 ] && err 'Low memory level can only be 0, 1 or 2'
-            force_lowmem=$2
-            shift
-            ;;
         --disk)
             disk=$2
             shift
@@ -363,10 +316,6 @@ while [ $# -gt 0 ]; do
             ;;
         --efi)
             efi=true
-            ;;
-        --esp)
-            esp=$2
-            shift
             ;;
         --filesystem)
             filesystem=$2
@@ -404,10 +353,6 @@ while [ $# -gt 0 ]; do
         --bbr)
             bbr=true
             ;;
-        --ssh-port)
-            ssh_port=$2
-            shift
-            ;;
         --hold)
             hold=true
             ;;
@@ -416,6 +361,10 @@ while [ $# -gt 0 ]; do
             ;;
         --architecture)
             architecture=$2
+            shift
+            ;;
+        --boot-directory)
+            boot_directory=$2
             shift
             ;;
         --firmware)
@@ -465,7 +414,8 @@ done
 [ -n "$authorized_keys_url" ] && ! download "$authorized_keys_url" /dev/null &&
 err "Failed to download SSH authorized public keys from \"$authorized_keys_url\""
 
-installer_directory="/boot/debian-$suite"
+installer="debian-$suite"
+installer_directory="/boot/$installer"
 
 save_preseed='cat'
 [ "$dry_run" = false ] && {
@@ -482,7 +432,7 @@ elif [ "$network_console" = true ] && [ -z "$authorized_keys_url" ]; then
     prompt_password "Choose a password for the installer user of the SSH network console: "
 fi
 
-$save_preseed << EOF
+$save_preseed << 'EOF'
 # Localization
 
 d-i debian-installer/language string zh_CN:zh
@@ -492,7 +442,7 @@ d-i keyboard-configuration/xkb-keymap select cn
 
 # Network configuration
 
-d-i netcfg/choose_interface select $interface
+d-i netcfg/choose_interface select auto
 EOF
 
 [ -n "$ip" ] && {
@@ -554,7 +504,7 @@ d-i mirror/country string manual
 d-i mirror/protocol string $mirror_protocol
 d-i mirror/$mirror_protocol/hostname string $mirror_host
 d-i mirror/$mirror_protocol/directory string $mirror_directory
-d-i mirror/$mirror_protocol/proxy string $mirror_proxy
+d-i mirror/$mirror_protocol/proxy string
 d-i mirror/suite string $suite
 EOF
 
@@ -621,8 +571,6 @@ EOF
     fi
 }
 
-[ -n "$ssh_port" ] && configure_sshd Port "$ssh_port"
-
 $save_preseed << EOF
 
 # Clock and time zone setup
@@ -631,13 +579,13 @@ d-i time/zone string $timezone
 d-i clock-setup/utc boolean true
 d-i clock-setup/ntp boolean true
 d-i clock-setup/ntp-server string $ntp
-
-# Partitioning
-
 EOF
 
 [ "$disk_partitioning" = true ] && {
     $save_preseed << 'EOF'
+
+# Partitioning
+
 d-i partman-auto/method string regular
 EOF
     if [ -n "$disk" ]; then
@@ -646,16 +594,14 @@ EOF
         # shellcheck disable=SC2016
         echo 'd-i partman/early_command string debconf-set partman-auto/disk "$(list-devices disk | head -n 1)"' | $save_preseed
     fi
-}
 
-[ "$force_gpt" = true ] && {
-    $save_preseed << 'EOF'
+    [ "$force_gpt" = true ] && {
+        $save_preseed << 'EOF'
 d-i partman-partitioning/choose_label string gpt
 d-i partman-partitioning/default_label string gpt
 EOF
-}
+    }
 
-[ "$disk_partitioning" = true ] && {
     echo "d-i partman/default_filesystem string $filesystem" | $save_preseed
 
     [ -z "$efi" ] && {
@@ -668,10 +614,8 @@ d-i partman-auto/expert_recipe string \
     naive :: \
 EOF
     if [ "$efi" = true ]; then
-        $save_preseed << EOF
-        $esp $esp $esp free \\
-EOF
         $save_preseed << 'EOF'
+        106 106 106 free \
             $iflabel{ gpt } \
             $reusemethod{ } \
             method{ efi } \
@@ -750,13 +694,8 @@ popularity-contest popularity-contest/participate boolean false
 
 # Boot loader installation
 
+d-i grub-installer/bootdev string default
 EOF
-
-if [ -n "$disk" ]; then
-    echo "d-i grub-installer/bootdev string $disk" | $save_preseed
-else
-    echo 'd-i grub-installer/bootdev string default' | $save_preseed
-fi
 
 [ "$force_efi_extra_removable" = true ] && echo 'd-i grub-installer/force-efi-extra-removable boolean true' | $save_preseed
 [ -n "$kernel_params" ] && echo "d-i debian-installer/add-kernel-opts string$kernel_params" | $save_preseed
@@ -780,7 +719,7 @@ save_grub_cfg='cat'
     base_url="$mirror_protocol://$mirror_host$mirror_directory/dists/$suite/main/installer-$architecture/current/images/netboot/debian-installer/$architecture"
     [ "$suite" = stretch ] && [ "$efi" = true ] && base_url="$mirror_protocol://$mirror_host$mirror_directory/dists/buster/main/installer-$architecture/current/images/netboot/debian-installer/$architecture"
     [ "$daily_d_i" = true ] && base_url="https://d-i.debian.org/daily-images/$architecture/daily/netboot/debian-installer/$architecture"
-    firmware_url="https://cdimage.debian.org/cdimage/firmware/$suite/current/firmware.cpio.gz"
+    firmware_url="https://cdimage.debian.org/cdimage/unofficial/non-free/firmware/$suite/current/firmware.cpio.gz"
 
     download "$base_url/linux" linux
     download "$base_url/initrd.gz" initrd.gz
@@ -817,17 +756,19 @@ EOF
     save_grub_cfg="tee -a $grub_cfg"
 }
 
-mkrelpath=$installer_directory
-[ "$dry_run" = true ] && mkrelpath=/boot
-installer_directory=$(grub-mkrelpath "$mkrelpath" 2> /dev/null) ||
-installer_directory=$(grub2-mkrelpath "$mkrelpath" 2> /dev/null) || {
-    err 'Could not find "grub-mkrelpath" or "grub2-mkrelpath" command'
+[ -z "$boot_directory" ] && {
+    if grep -q '\s/boot\s' /proc/mounts; then
+        boot_directory=/
+    else
+        boot_directory=/boot/
+    fi
 }
-[ "$dry_run" = true ] && installer_directory="$installer_directory/debian-$suite"
 
-kernel_params="$kernel_params lowmem/low=1"
+installer_directory="$boot_directory$installer"
 
-[ -n "$force_lowmem" ] && kernel_params="$kernel_params lowmem=+$force_lowmem"
+# shellcheck disable=SC2034
+mem=$(grep ^MemTotal: /proc/meminfo | { read -r x y z; echo "$y"; })
+[ $((mem / 1024)) -le 512 ] && kernel_params="$kernel_params lowmem/low=1"
 
 initrd="$installer_directory/initrd.gz"
 [ "$firmware" = true ] && initrd="$initrd $installer_directory/firmware.cpio.gz"
@@ -838,7 +779,6 @@ menuentry 'Debian Installer' --id debi {
     insmod part_gpt
     insmod ext2
     insmod xfs
-    insmod btrfs
     linux $installer_directory/linux$kernel_params
     initrd $initrd
 }
