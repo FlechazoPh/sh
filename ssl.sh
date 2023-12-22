@@ -96,13 +96,18 @@ read -p "请输入您的 DNS 记录名称（例如：blog）: " subdomain
 generate_certificates() {
     local domain=$1
     print_info "为 $domain 生成 SSL 证书"
-    acme.sh --issue --dns dns_cf -d "$domain" --keylength ec-256 || {
+    # 颁发证书
+    acme.sh --install-cert \
+    --issue \
+    -d "$domain" \
+    --dns "dns_cf" \
+    --key-file "/BOX/${HOSTNAME}/${folder}/server.key" \
+    --fullchain-file "/BOX/${HOSTNAME}/${folder}/server.crt" \
+    --reloadcmd "systemctl restart nginx.service" || {
         print_error "为 $domain 生成 SSL 证书失败！"
         return 1
     }
-    sleep 1
-    cp "/root/.acme.sh/${domain}_ecc/$domain.cer" "/BOX/${HOSTNAME}/${folder}/server.crt"
-    cp "/root/.acme.sh/${domain}_ecc/$domain.key" "/BOX/${HOSTNAME}/${folder}/server.key"
+
 }
 
 # 获取主机名并创建目录
