@@ -4,12 +4,12 @@
 set -eu
 
 err() {
-    printf "\nError: %s.\n" "$1" 1>&2
+    printf "\n错误: %s.\n" "$1" 1>&2
     exit 1
 }
 
 warn() {
-    printf "\nWarning: %s.\nContinuing with the default...\n" "$1" 1>&2
+    printf "\警告: %s.\n继续使用默认值...\n" "$1" 1>&2
     sleep 5
 }
 
@@ -18,7 +18,7 @@ command_exists() {
 }
 
 # Sets variable:
-late_command=
+in_target_script=
 in_target() {
     local command=
 
@@ -27,8 +27,8 @@ in_target() {
     done
 
     if [ -n "$command" ]; then
-        [ -z "$late_command" ] && late_command='true'
-        late_command="$late_command;$command"
+        [ -z "$in_target_script" ] && in_target_script='true'
+        in_target_script="$in_target_script;$command"
     fi
 }
 
@@ -38,7 +38,7 @@ in_target_backup() {
 
 configure_sshd() {
     # !isset($sshd_config_backup)
-    [ -z ${sshd_config_backup+1s} ] && in_target_backup /etc/ssh/sshd_config
+    [ -z "${sshd_config_backup+1s}" ] && in_target_backup /etc/ssh/sshd_config
     sshd_config_backup=
     in_target sed -Ei \""s/^#?$1 .+/$1 $2/"\" /etc/ssh/sshd_config
 }
@@ -68,6 +68,16 @@ prompt_password() {
 }
 
 download() {
+    # 将“$http/https/ftp_proxy”设置为“$mirror_proxy”
+    # 仅当这些都没有被设置过时
+    [ -n "$mirror_proxy" ] &&
+    [ -z "${http_proxy+1s}" ] &&
+    [ -z "${https_proxy+1s}" ] &&
+    [ -z "${ftp_proxy+1s}" ] &&
+    export http_proxy="$mirror_proxy" &&
+    export https_proxy="$mirror_proxy" &&
+    export ftp_proxy="$mirror_proxy"
+
     if command_exists wget; then
         wget -O "$2" "$1"
     elif command_exists curl; then
@@ -75,36 +85,57 @@ download() {
     elif command_exists busybox && busybox wget --help > /dev/null 2>&1; then
         busybox wget -O "$2" "$1"
     else
-        err 'Cannot find "wget", "curl" or "busybox wget" to download files'
+        err '找不到“wget”、“curl”或“busybox wget”来下载文件'
     fi
+}
+
+
+# 将“$mirror_proxy”设置为“$http/https/ftp_proxy”
+# 仅当它为空且其中之一不为空时
+set_mirror_proxy() {
+    [ -n "$mirror_proxy" ] && return
+
+    case $mirror_protocol in
+        http)
+            if [ -n "${http_proxy+1s}" ]; then mirror_proxy="$http_proxy"; fi
+            ;;
+        https)
+            if [ -n "${https_proxy+1s}" ]; then mirror_proxy="$https_proxy"; fi
+            ;;
+        ftp)
+            if [ -n "${ftp_proxy+1s}" ]; then mirror_proxy="$ftp_proxy"; fi
+            ;;
+        *)
+            err "不支持的协议: $mirror_protocol"
+    esac
 }
 
 set_security_archive() {
     case $suite in
-        stretch|oldoldstable|buster|oldstable)
+        buster|oldoldstable)
             security_archive="$suite/updates"
             ;;
-        bullseye|stable|bookworm|testing)
+        bullseye|oldstable|bookworm|stable|trixie|testing)
             security_archive="$suite-security"
             ;;
         sid|unstable)
             security_archive=''
             ;;
         *)
-            err "Unsupported suite: $suite"
+            err "不支持的套件: $suite"
     esac
 }
 
 set_daily_d_i() {
     case $suite in
-        stretch|oldoldstable|buster|oldstable|bullseye|stable)
+        buster|oldoldstable|bullseye|oldstable|bookworm|stable)
             daily_d_i=false
             ;;
-        bookworm|testing|sid|unstable)
+        trixie|testing|sid|unstable)
             daily_d_i=true
             ;;
         *)
-            err "Unsupported suite: $suite"
+            err "不支持的套件: $suite"
     esac
 }
 
@@ -116,65 +147,65 @@ set_suite() {
 
 set_debian_version() {
     case $1 in
-        9|stretch|oldoldstable)
-            set_suite stretch
-            ;;
-        10|buster|oldstable)
+        10|buster|oldoldstable)
             set_suite buster
             ;;
-        11|bullseye|stable)
+        11|bullseye|oldstable)
             set_suite bullseye
             ;;
-        12|bookworm|testing)
+        12|bookworm|stable)
+            set_suite bookworm
+            ;;
+        13|trixie|testing)
             set_suite bookworm
             ;;
         sid|unstable)
             set_suite sid
             ;;
         *)
-            err "Unsupported version: $1"
+            err "不支持的版本: $1"
     esac
 }
 
 has_cloud_kernel() {
     case $suite in
-        stretch|oldoldstable)
-            [ "$architecture" = amd64 ] && [ "$bpo_kernel" = true ] && return
-            ;;
-        buster|oldstable)
+        buster|oldoldstable)
             [ "$architecture" = amd64 ] && return
             [ "$architecture" = arm64 ] && [ "$bpo_kernel" = true ] && return
             ;;
-        bullseye|stable|bookworm|testing|sid|unstable)
+        bullseye|oldstable|bookworm|stable|trixie|testing|sid|unstable)
             [ "$architecture" = amd64 ] || [ "$architecture" = arm64 ] && return
     esac
 
     local tmp; tmp=''; [ "$bpo_kernel" = true ] && tmp='-backports'
-    warn "No cloud kernel is available for $architecture/$suite$tmp"
+    warn "没有可用的云内核 $architecture/$suite$tmp"
 
     return 1
 }
 
 has_backports() {
     case $suite in
-        stretch|oldoldstable|buster|oldstable|bullseye|stable|bookworm|testing) return
+        buster|oldoldstable|bullseye|oldstable|bookworm|stable|trixie|testing) return
     esac
 
-    warn "No backports kernel is available for $suite"
+    warn "没有可用的向后移植内核 $suite"
 
     return 1
 }
 
+interface=auto
 ip=
 netmask=
 gateway=
 dns='8.8.8.8 8.8.4.4'
+dns6='2001:4860:4860::8888 2001:4860:4860::8844'
 hostname=
 network_console=false
 set_debian_version 12
-mirror_protocol=http
+mirror_protocol=https
 mirror_host=deb.debian.org
 mirror_directory=/debian
+mirror_proxy=
 security_repository=mirror
 account_setup=true
 username=debian
@@ -187,37 +218,66 @@ disk_partitioning=true
 disk=
 force_gpt=true
 efi=
+esp=106
 filesystem=ext4
 kernel=
 cloud_kernel=false
 bpo_kernel=false
 install_recommends=true
-install='ca-certificates libpam-systemd sudo wget curl ntp lsb-release net-tools gnupg git socat cron jq'
+install='sudo wget curl ntp lsb-release net-tools gnupg git socat cron jq'
 upgrade=
 kernel_params=
+force_lowmem=
 bbr=false
+ssh_port=
 hold=false
 power_off=false
 architecture=
-boot_directory=
 firmware=false
 force_efi_extra_removable=true
 grub_timeout=5
 dry_run=false
+apt_non_free_firmware=true
+apt_non_free=false
+apt_contrib=false
+apt_src=true
+apt_backports=true
+cidata=
 
 while [ $# -gt 0 ]; do
     case $1 in
-        --cdn|--aws)
-            mirror_protocol=https
-            [ "$1" = '--aws' ] && mirror_host=cdn-aws.deb.debian.org
-            security_repository=mirror
+        --cdn)
             ;;
-        --china)
+        --aws)
+            mirror_host=cdn-aws.deb.debian.org
+            ntp=time.aws.com
+            ;;
+        --cloudflare)
+            dns='1.1.1.1 1.0.0.1'
+            dns6='2606:4700:4700::1111 2606:4700:4700::1001'
+            ntp=time.cloudflare.com
+            ;;
+        --aliyun)
             dns='223.5.5.5 223.6.6.6'
-            mirror_protocol=https
+            dns6='2400:3200::1 2400:3200:baba::1'
             mirror_host=mirrors.aliyun.com
-            ntp=ntp.aliyun.com
-            security_repository=mirror
+            ntp=time.amazonaws.cn
+            ;;
+        --ustc|--china)
+            dns='119.29.29.29'
+            dns6='2402:4e00::'
+            mirror_host=mirrors.ustc.edu.cn
+            ntp=time.amazonaws.cn
+            ;;
+        --tuna)
+            dns='119.29.29.29'
+            dns6='2402:4e00::'
+            mirror_host=mirrors.tuna.tsinghua.edu.cn
+            ntp=time.amazonaws.cn
+            ;;
+        --interface)
+            interface=$2
+            shift
             ;;
         --ip)
             ip=$2
@@ -233,6 +293,10 @@ while [ $# -gt 0 ]; do
             ;;
         --dns)
             dns=$2
+            shift
+            ;;
+        --dns6)
+            dns6=$2
             shift
             ;;
         --hostname)
@@ -271,6 +335,13 @@ while [ $# -gt 0 ]; do
             mirror_directory=${2%/}
             shift
             ;;
+        --mirror-proxy|--proxy)
+            mirror_proxy=$2
+            shift
+            ;;
+        --reuse-proxy)
+            set_mirror_proxy
+            ;;
         --security-repository)
             security_repository=$2
             shift
@@ -304,6 +375,11 @@ while [ $# -gt 0 ]; do
         --no-part|--no-disk-partitioning)
             disk_partitioning=false
             ;;
+        --force-lowmem)
+            [ "$2" != 0 ] && [ "$2" != 1 ] && [ "$2" != 2 ] && err 'Low memory level can only be 0, 1 or 2'
+            force_lowmem=$2
+            shift
+            ;;
         --disk)
             disk=$2
             shift
@@ -316,6 +392,10 @@ while [ $# -gt 0 ]; do
             ;;
         --efi)
             efi=true
+            ;;
+        --esp)
+            esp=$2
+            shift
             ;;
         --filesystem)
             filesystem=$2
@@ -330,6 +410,38 @@ while [ $# -gt 0 ]; do
             ;;
         --bpo-kernel)
             bpo_kernel=true
+            ;;
+        --apt-non-free-firmware)
+            apt_non_free_firmware=true
+            ;;
+        --apt-non-free)
+            apt_non_free=true
+            apt_contrib=true
+            ;;
+        --apt-contrib)
+            apt_contrib=true
+            ;;
+        --apt-src)
+            apt_src=true
+            ;;
+        --apt-backports)
+            apt_backports=true
+            ;;
+        --no-apt-non-free-firmware)
+            apt_non_free_firmware=false
+            ;;
+        --no-apt-non-free)
+            apt_non_free=false
+            ;;
+        --no-apt-contrib)
+            apt_contrib=false
+            apt_non_free=false
+            ;;
+        --no-apt-src)
+            apt_src=false
+            ;;
+        --no-apt-backports)
+            apt_backports=false
             ;;
         --no-install-recommends)
             install_recommends=false
@@ -353,6 +465,10 @@ while [ $# -gt 0 ]; do
         --bbr)
             bbr=true
             ;;
+        --ssh-port)
+            ssh_port=$2
+            shift
+            ;;
         --hold)
             hold=true
             ;;
@@ -361,10 +477,6 @@ while [ $# -gt 0 ]; do
             ;;
         --architecture)
             architecture=$2
-            shift
-            ;;
-        --boot-directory)
-            boot_directory=$2
             shift
             ;;
         --firmware)
@@ -379,6 +491,12 @@ while [ $# -gt 0 ]; do
             ;;
         --dry-run)
             dry_run=true
+            ;;
+        --cidata)
+            cidata=$(realpath "$2")
+            [ ! -f "$cidata/meta-data" ] && err 'No "meta-data" file found in the cloud-init directory'
+            [ ! -f "$cidata/user-data" ] && err 'No "user-data" file found in the cloud-init directory'
+            shift
             ;;
         *)
             err "Unknown option: \"$1\""
@@ -412,10 +530,26 @@ done
 }
 
 [ -n "$authorized_keys_url" ] && ! download "$authorized_keys_url" /dev/null &&
-err "Failed to download SSH authorized public keys from \"$authorized_keys_url\""
+err "无法从以下位置下载 SSH 授权的公钥 \"$authorized_keys_url\""
 
-installer="debian-$suite"
-installer_directory="/boot/$installer"
+non_free_firmware_available=false
+case $suite in
+    bookworm|stable|trixie|testing|sid|unstable)
+        non_free_firmware_available=true
+        ;;
+    *)
+        apt_non_free_firmware=false
+esac
+
+apt_components=main
+[ "$apt_contrib" = true ] && apt_components="$apt_components contrib"
+[ "$apt_non_free" = true ] && apt_components="$apt_components non-free"
+[ "$apt_non_free_firmware" = true ] && apt_components="$apt_components non-free-firmware"
+
+apt_services=updates
+[ "$apt_backports" = true ] && apt_services="$apt_services, backports"
+
+installer_directory="/boot/debian-$suite"
 
 save_preseed='cat'
 [ "$dry_run" = false ] && {
@@ -429,20 +563,20 @@ save_preseed='cat'
 if [ "$account_setup" = true ]; then
     prompt_password
 elif [ "$network_console" = true ] && [ -z "$authorized_keys_url" ]; then
-    prompt_password "Choose a password for the installer user of the SSH network console: "
+    prompt_password "为 SSH 网络控制台的安装程序用户选择密码: "
 fi
 
-$save_preseed << 'EOF'
-# Localization
+$save_preseed << EOF
+# 本地化
 
 d-i debian-installer/language string zh_CN:zh
 d-i debian-installer/country string CN
 d-i debian-installer/locale string zh_CN.UTF-8
 d-i keyboard-configuration/xkb-keymap select cn
 
-# Network configuration
+# 网络配置
 
-d-i netcfg/choose_interface select auto
+d-i netcfg/choose_interface select $interface
 EOF
 
 [ -n "$ip" ] && {
@@ -450,7 +584,7 @@ EOF
     echo "d-i netcfg/get_ipaddress string $ip" | $save_preseed
     [ -n "$netmask" ] && echo "d-i netcfg/get_netmask string $netmask" | $save_preseed
     [ -n "$gateway" ] && echo "d-i netcfg/get_gateway string $gateway" | $save_preseed
-    [ -z "${ip%%*:*}" ] && [ -n "${dns%%*:*}" ] && dns='2001:4860:4860::8888 2001:4860:4860::8844'
+    [ -z "${ip%%*:*}" ] && [ -n "${dns%%*:*}" ] && dns="$dns6"
     [ -n "$dns" ] && echo "d-i netcfg/get_nameservers string $dns" | $save_preseed
     echo 'd-i netcfg/confirm_static boolean true' | $save_preseed
 }
@@ -479,7 +613,7 @@ echo 'd-i hw-detect/load_firmware boolean true' | $save_preseed
 [ "$network_console" = true ] && {
     $save_preseed << 'EOF'
 
-# Network console
+# 网络控制台
 
 d-i anna/choose_modules string network-console
 d-i preseed/early_command string anna-install network-console
@@ -498,13 +632,13 @@ EOF
 
 $save_preseed << EOF
 
-# Mirror settings
+# 镜像设置
 
 d-i mirror/country string manual
 d-i mirror/protocol string $mirror_protocol
 d-i mirror/$mirror_protocol/hostname string $mirror_host
 d-i mirror/$mirror_protocol/directory string $mirror_directory
-d-i mirror/$mirror_protocol/proxy string
+d-i mirror/$mirror_protocol/proxy string $mirror_proxy
 d-i mirror/suite string $suite
 EOF
 
@@ -519,7 +653,7 @@ EOF
 
     $save_preseed << 'EOF'
 
-# Account setup
+# 账户设置
 
 EOF
     [ -n "$authorized_keys_url" ] && configure_sshd PasswordAuthentication no
@@ -571,21 +705,23 @@ EOF
     fi
 }
 
+[ -n "$ssh_port" ] && configure_sshd Port "$ssh_port"
+
 $save_preseed << EOF
 
-# Clock and time zone setup
+# 时钟和时区设置
 
 d-i time/zone string $timezone
 d-i clock-setup/utc boolean true
 d-i clock-setup/ntp boolean true
 d-i clock-setup/ntp-server string $ntp
+
+# 分区
+
 EOF
 
 [ "$disk_partitioning" = true ] && {
     $save_preseed << 'EOF'
-
-# Partitioning
-
 d-i partman-auto/method string regular
 EOF
     if [ -n "$disk" ]; then
@@ -594,14 +730,16 @@ EOF
         # shellcheck disable=SC2016
         echo 'd-i partman/early_command string debconf-set partman-auto/disk "$(list-devices disk | head -n 1)"' | $save_preseed
     fi
+}
 
-    [ "$force_gpt" = true ] && {
-        $save_preseed << 'EOF'
+[ "$force_gpt" = true ] && {
+    $save_preseed << 'EOF'
 d-i partman-partitioning/choose_label string gpt
 d-i partman-partitioning/default_label string gpt
 EOF
-    }
+}
 
+[ "$disk_partitioning" = true ] && {
     echo "d-i partman/default_filesystem string $filesystem" | $save_preseed
 
     [ -z "$efi" ] && {
@@ -614,8 +752,10 @@ d-i partman-auto/expert_recipe string \
     naive :: \
 EOF
     if [ "$efi" = true ]; then
+        $save_preseed << EOF
+        $esp $esp $esp free \\
+EOF
         $save_preseed << 'EOF'
-        106 106 106 free \
             $iflabel{ gpt } \
             $reusemethod{ } \
             method{ efi } \
@@ -657,7 +797,7 @@ EOF
 
 $save_preseed << EOF
 
-# Base system installation
+# 基础系统安装
 
 d-i base-installer/kernel/image string $kernel
 EOF
@@ -666,25 +806,35 @@ EOF
 
 [ "$security_repository" = mirror ] && security_repository=$mirror_protocol://$mirror_host${mirror_directory%/*}/debian-security
 
+$save_preseed << EOF
+
+# APT的设置
+
+d-i apt-setup/contrib boolean $apt_contrib
+d-i apt-setup/non-free boolean $apt_non_free
+d-i apt-setup/enable-source-repositories boolean $apt_src
+d-i apt-setup/services-select multiselect $apt_services
+EOF
+
+[ "$non_free_firmware_available" = true ] && echo "d-i apt-setup/non-free-firmware boolean $apt_non_free_firmware" | $save_preseed
+
 # If not sid/unstable
 [ -n "$security_archive" ] && {
     $save_preseed << EOF
-
-# Apt setup
-
-d-i apt-setup/services-select multiselect updates, backports
-d-i apt-setup/local0/repository string $security_repository $security_archive main
-d-i apt-setup/local0/source boolean true
+d-i apt-setup/local0/repository string $security_repository $security_archive $apt_components
+d-i apt-setup/local0/source boolean $apt_src
 EOF
-
 }
 
 $save_preseed << 'EOF'
 
-# Package selection
+# tasksel套餐选择
 
 tasksel tasksel/first multiselect ssh-server
 EOF
+
+install="$install ca-certificates libpam-systemd"
+[ -n "$cidata" ] && install="$install cloud-init"
 
 [ -n "$install" ] && echo "d-i pkgsel/include string $install" | $save_preseed
 [ -n "$upgrade" ] && echo "d-i pkgsel/upgrade select $upgrade" | $save_preseed
@@ -692,17 +842,22 @@ EOF
 $save_preseed << 'EOF'
 popularity-contest popularity-contest/participate boolean false
 
-# Boot loader installation
+# 引导加载程序安装
 
-d-i grub-installer/bootdev string default
 EOF
+
+if [ -n "$disk" ]; then
+    echo "d-i grub-installer/bootdev string $disk" | $save_preseed
+else
+    echo 'd-i grub-installer/bootdev string default' | $save_preseed
+fi
 
 [ "$force_efi_extra_removable" = true ] && echo 'd-i grub-installer/force-efi-extra-removable boolean true' | $save_preseed
 [ -n "$kernel_params" ] && echo "d-i debian-installer/add-kernel-opts string$kernel_params" | $save_preseed
 
 $save_preseed << 'EOF'
 
-# Finishing up the installation
+# 完成安装
 
 EOF
 
@@ -710,7 +865,13 @@ EOF
 
 [ "$bbr" = true ] && in_target '{ echo "net.core.default_qdisc=fq"; echo "net.ipv4.tcp_congestion_control=bbr"; } > /etc/sysctl.d/bbr.conf'
 
-[ -n "$late_command" ] && echo "d-i preseed/late_command string in-target sh -c '$late_command'" | $save_preseed
+[ -n "$cidata" ] && in_target 'echo "{ datasource_list: [ NoCloud ], datasource: { NoCloud: { fs_label: ~ } } }" > /etc/cloud/cloud.cfg.d/99_debi.cfg'
+
+late_command='true'
+[ -n "$in_target_script" ] && late_command="$late_command; in-target sh -c '$in_target_script'"
+[ -n "$cidata" ] && late_command="$late_command; mkdir -p /target/var/lib/cloud/seed/nocloud; cp -r /cidata/. /target/var/lib/cloud/seed/nocloud/"
+
+echo "d-i preseed/late_command string $late_command" | $save_preseed
 
 [ "$power_off" = true ] && echo 'd-i debian-installer/exit/poweroff boolean true' | $save_preseed
 
@@ -719,7 +880,7 @@ save_grub_cfg='cat'
     base_url="$mirror_protocol://$mirror_host$mirror_directory/dists/$suite/main/installer-$architecture/current/images/netboot/debian-installer/$architecture"
     [ "$suite" = stretch ] && [ "$efi" = true ] && base_url="$mirror_protocol://$mirror_host$mirror_directory/dists/buster/main/installer-$architecture/current/images/netboot/debian-installer/$architecture"
     [ "$daily_d_i" = true ] && base_url="https://d-i.debian.org/daily-images/$architecture/daily/netboot/debian-installer/$architecture"
-    firmware_url="https://cdimage.debian.org/cdimage/unofficial/non-free/firmware/$suite/current/firmware.cpio.gz"
+    firmware_url="https://cdimage.debian.org/cdimage/firmware/$suite/current/firmware.cpio.gz"
 
     download "$base_url/linux" linux
     download "$base_url/initrd.gz" initrd.gz
@@ -728,6 +889,12 @@ save_grub_cfg='cat'
     gzip -d initrd.gz
     # cpio reads a list of file names from the standard input
     echo preseed.cfg | cpio -o -H newc -A -F initrd
+
+    if [ -n "$cidata" ]; then
+        cp -r "$cidata" cidata
+        find cidata | cpio -o -H newc -A -F initrd
+    fi
+
     gzip -1 initrd
 
     mkdir -p /etc/default/grub.d
@@ -750,25 +917,23 @@ EOF
         grub_cfg=/boot/grub2/grub.cfg
         grub2-mkconfig -o "$grub_cfg"
     else
-        err 'Could not find "update-grub" or "grub2-mkconfig" command'
+        err '找不到“update-grub”或“grub2-mkconfig”命令'
     fi
 
     save_grub_cfg="tee -a $grub_cfg"
 }
 
-[ -z "$boot_directory" ] && {
-    if grep -q '\s/boot\s' /proc/mounts; then
-        boot_directory=/
-    else
-        boot_directory=/boot/
-    fi
+mkrelpath=$installer_directory
+[ "$dry_run" = true ] && mkrelpath=/boot
+installer_directory=$(grub-mkrelpath "$mkrelpath" 2> /dev/null) ||
+installer_directory=$(grub2-mkrelpath "$mkrelpath" 2> /dev/null) || {
+    err '找不到“grub-mkrelpath”或“grub2-mkrelpath”命令'
 }
+[ "$dry_run" = true ] && installer_directory="$installer_directory/debian-$suite"
 
-installer_directory="$boot_directory$installer"
+kernel_params="$kernel_params lowmem/low=1"
 
-# shellcheck disable=SC2034
-mem=$(grep ^MemTotal: /proc/meminfo | { read -r x y z; echo "$y"; })
-[ $((mem / 1024)) -le 512 ] && kernel_params="$kernel_params lowmem/low=1"
+[ -n "$force_lowmem" ] && kernel_params="$kernel_params lowmem=+$force_lowmem"
 
 initrd="$installer_directory/initrd.gz"
 [ "$firmware" = true ] && initrd="$initrd $installer_directory/firmware.cpio.gz"
@@ -779,6 +944,7 @@ menuentry 'Debian Installer' --id debi {
     insmod part_gpt
     insmod ext2
     insmod xfs
+    insmod btrfs
     linux $installer_directory/linux$kernel_params
     initrd $initrd
 }
