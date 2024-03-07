@@ -830,7 +830,7 @@ $save_preseed << 'EOF'
 
 # tasksel套餐选择
 
-# tasksel tasksel/first multiselect ssh-server laptop
+tasksel tasksel/first multiselect ssh-server laptop
 EOF
 
 install="$install ca-certificates libpam-systemd"
