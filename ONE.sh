@@ -57,7 +57,7 @@ function author_info() {
 
 #一键DD脚本
 function Debian(){
-    curl -fLO https://raw.jijunrong.com/jijunrong/sh/main/debian.sh && chmod a+rx debian.sh
+    curl -fLO https://raw.githubusercontent.com/jijunrong/sh/main/debian.sh && chmod a+rx debian.sh
     blue "DD脚本下载完成"
     blue "请选择安装方式："
     green " 1. 默认安装"
@@ -94,7 +94,7 @@ function Debian(){
 
 #常用apt一键脚本
 function app(){
-    sudo bash -c "$(curl -L https://raw.jijunrong.com/jijunrong/sh/main/apt.sh)" 
+    sudo bash -c "$(curl -L https://raw.githubusercontent.com/jijunrong/sh/main/apt.sh)" 
     blue "常用安装完成"
 }
 
@@ -140,13 +140,13 @@ function proxy_management() {
 
 #安装snell
 function install_snell() {
-sudo bash -c "$(curl -sL https://raw.jijunrong.com/jijunrong/sh/main/snell.sh)"
+sudo bash -c "$(curl -sL https://raw.githubusercontent.com/jijunrong/sh/main/snell.sh)"
 blue "snell安装完成"
 }
 
 #卸载snell
 function uninstall_snell() {
-    sudo bash -c "$(curl -sL https://raw.jijunrong.com/jijunrong/sh/main/rmsnell.sh)"
+    sudo bash -c "$(curl -sL https://raw.githubusercontent.com/jijunrong/sh/main/rmsnell.sh)"
     blue "snell卸载完成"
 }
 
@@ -164,22 +164,22 @@ function uninstall_xray() {
 
 #网络管理及网卡重命名
 function eth0(){
-    sudo bash -c "$(curl -L https://raw.jijunrong.com/jijunrong/sh/main/eth0.sh)"
+    sudo bash -c "$(curl -L https://raw.githubusercontent.com/jijunrong/sh/main/eth0.sh)"
 }
 
 #Cloudflare CDN优选IP脚本
 function CloudflareIP(){
-    sudo bash -c "$(curl -L https://raw.jijunrong.com/jijunrong/sh/main/CloudflareIP.sh)"
+    sudo bash -c "$(curl -L https://raw.githubusercontent.com/jijunrong/sh/main/CloudflareIP.sh)"
 }
 
 #桌面版root自动登录
 function login(){
-    sudo bash -c "$(curl -L https://raw.jijunrong.com/jijunrong/sh/main/login.sh)"
+    sudo bash -c "$(curl -L https://raw.githubusercontent.com/jijunrong/sh/main/login.sh)"
 }
 
 #ssh一键root登录
 function root(){
-    sudo bash -c "$(curl -L https://raw.jijunrong.com/jijunrong/sh/main/root.sh)"
+    sudo bash -c "$(curl -L https://raw.githubusercontent.com/jijunrong/sh/main/root.sh)"
 }
 
 #获取本地IP地址
@@ -198,65 +198,65 @@ function timezone(){
 
 #启动BBR FQ算法
 function bbrfq(){
-    sudo bash -c "$(curl -L https://raw.jijunrong.com/jijunrong/sh/main/bbrfq.sh)"
+    sudo bash -c "$(curl -L https://raw.githubusercontent.com/jijunrong/sh/main/bbrfq.sh)"
 }
 
 #更改主机名称及登陆提示信息
 function motd(){
-    sudo bash -c "$(curl -L https://raw.jijunrong.com/jijunrong/sh/main/motd.sh)"
+    sudo bash -c "$(curl -L https://raw.githubusercontent.com/jijunrong/sh/main/motd.sh)"
 }
 
 #默认语言环境判定
 function language(){
-    sudo bash -c "$(curl -L https://raw.jijunrong.com/jijunrong/sh/main/language.sh)"
+    sudo bash -c "$(curl -L https://raw.githubusercontent.com/jijunrong/sh/main/language.sh)"
 }
 
 #Bash个性化配置
 function systembash(){
-    sudo bash -c "$(curl -L https://raw.jijunrong.com/jijunrong/sh/main/systembash.sh)"
+    sudo bash -c "$(curl -L https://raw.githubusercontent.com/jijunrong/sh/main/systembash.sh)"
 }
 
 #桌面环境系统禁止系统休眠
 function sleepstatus(){
-    sudo bash -c "$(curl -L https://raw.jijunrong.com/jijunrong/sh/main/sleepstatus.sh)"
+    sudo bash -c "$(curl -L https://raw.githubusercontent.com/jijunrong/sh/main/sleepstatus.sh)"
 }
 
 #备用TEST管理
 function TEST(){
-    sudo bash -c "$(curl -L https://raw.jijunrong.com/jijunrong/sh/main/HOME.sh)"
+    sudo bash -c "$(curl -L https://raw.githubusercontent.com/jijunrong/sh/main/HOME.sh)"
 }
 
 #备用HOME管理
 function HOME(){
-    sudo bash -c "$(curl -L https://raw.jijunrong.com/jijunrong/sh/main/HOME.sh)"
+    sudo bash -c "$(curl -L https://raw.githubusercontent.com/jijunrong/sh/main/HOME.sh)"
 }
 
 #流媒体一键脚本
 function movie(){
-    sudo bash -c "$(curl -L https://raw.jijunrong.com/jijunrong/sh/main/movie.sh)"
+    sudo bash -c "$(curl -L https://raw.githubusercontent.com/jijunrong/sh/main/movie.sh)"
 }
 
 
 #DDNS自动更新管理
 function ddns(){
-    sudo bash -c "$(curl -L https://raw.jijunrong.com/jijunrong/sh/main/ddns.sh)"
+    sudo bash -c "$(curl -L https://raw.githubusercontent.com/jijunrong/sh/main/ddns.sh)"
 }
 
 
 #CloudFlare 域名管理
 function CloudFlare(){
-    sudo bash -c "$(curl -L https://raw.jijunrong.com/jijunrong/sh/main/CloudFlare.sh)"
+    sudo bash -c "$(curl -L https://raw.githubusercontent.com/jijunrong/sh/main/CloudFlare.sh)"
 }
 
 
 #自动化管理SSL证书
 function ssl(){
-    sudo bash -c "$(curl -L https://raw.jijunrong.com/jijunrong/sh/main/ssl.sh)"
+    sudo bash -c "$(curl -L https://raw.githubusercontent.com/jijunrong/sh/main/ssl.sh)"
 }
 
 #SWAP一键安装/卸载管理
 function swap(){
-    sudo bash -c "$(curl -L https://raw.jijunrong.com/jijunrong/sh/main/swap.sh)"
+    sudo bash -c "$(curl -L https://raw.githubusercontent.com/jijunrong/sh/main/swap.sh)"
 }
 
 
