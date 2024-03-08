@@ -264,13 +264,13 @@ while [ $# -gt 0 ]; do
             ntp=time.amazonaws.cn
             ;;
         --ustc|--china)
-            dns='119.29.29.29'
+            dns='223.5.5.5 119.29.29.29'
             dns6='2402:4e00::'
             mirror_host=mirrors.ustc.edu.cn
             ntp=time.amazonaws.cn
             ;;
         --tuna)
-            dns='119.29.29.29'
+            dns='223.5.5.5 119.29.29.29'
             dns6='2402:4e00::'
             mirror_host=mirrors.tuna.tsinghua.edu.cn
             ntp=time.amazonaws.cn
