@@ -85,10 +85,9 @@ download() {
     elif command_exists busybox && busybox wget --help > /dev/null 2>&1; then
         busybox wget -O "$2" "$1"
     else
-        err '找不到“wget”、“curl”或“busybox wget”来下载文件'
+        err 'Cannot find "wget", "curl" or "busybox wget" to download files'
     fi
 }
-
 
 # 将“$mirror_proxy”设置为“$http/https/ftp_proxy”
 # 仅当它为空且其中之一不为空时
@@ -106,7 +105,7 @@ set_mirror_proxy() {
             if [ -n "${ftp_proxy+1s}" ]; then mirror_proxy="$ftp_proxy"; fi
             ;;
         *)
-            err "不支持的协议: $mirror_protocol"
+            err "Unsupported protocol: $mirror_protocol"
     esac
 }
 
@@ -122,7 +121,7 @@ set_security_archive() {
             security_archive=''
             ;;
         *)
-            err "不支持的套件: $suite"
+            err "Unsupported suite: $suite"
     esac
 }
 
@@ -135,7 +134,7 @@ set_daily_d_i() {
             daily_d_i=true
             ;;
         *)
-            err "不支持的套件: $suite"
+            err "Unsupported suite: $suite"
     esac
 }
 
@@ -163,7 +162,7 @@ set_debian_version() {
             set_suite sid
             ;;
         *)
-            err "不支持的版本: $1"
+            err "Unsupported version: $1"
     esac
 }
 
@@ -178,7 +177,7 @@ has_cloud_kernel() {
     esac
 
     local tmp; tmp=''; [ "$bpo_kernel" = true ] && tmp='-backports'
-    warn "没有可用的云内核 $architecture/$suite$tmp"
+    warn "No cloud kernel is available for $architecture/$suite$tmp"
 
     return 1
 }
@@ -188,7 +187,7 @@ has_backports() {
         buster|oldoldstable|bullseye|oldstable|bookworm|stable|trixie|testing) return
     esac
 
-    warn "没有可用的向后移植内核 $suite"
+    warn "No backports kernel is available for $suite"
 
     return 1
 }
@@ -264,13 +263,13 @@ while [ $# -gt 0 ]; do
             ntp=time.amazonaws.cn
             ;;
         --ustc|--china)
-            dns='223.5.5.5 119.29.29.29'
+            dns='119.29.29.29'
             dns6='2402:4e00::'
             mirror_host=mirrors.ustc.edu.cn
             ntp=time.amazonaws.cn
             ;;
         --tuna)
-            dns='223.5.5.5 119.29.29.29'
+            dns='119.29.29.29'
             dns6='2402:4e00::'
             mirror_host=mirrors.tuna.tsinghua.edu.cn
             ntp=time.amazonaws.cn
@@ -530,7 +529,7 @@ done
 }
 
 [ -n "$authorized_keys_url" ] && ! download "$authorized_keys_url" /dev/null &&
-err "无法从以下位置下载 SSH 授权的公钥 \"$authorized_keys_url\""
+err "Failed to download SSH authorized public keys from \"$authorized_keys_url\""
 
 non_free_firmware_available=false
 case $suite in
@@ -563,7 +562,7 @@ save_preseed='cat'
 if [ "$account_setup" = true ]; then
     prompt_password
 elif [ "$network_console" = true ] && [ -z "$authorized_keys_url" ]; then
-    prompt_password "为 SSH 网络控制台的安装程序用户选择密码: "
+    prompt_password "Choose a password for the installer user of the SSH network console: "
 fi
 
 $save_preseed << EOF
@@ -880,7 +879,7 @@ save_grub_cfg='cat'
     base_url="$mirror_protocol://$mirror_host$mirror_directory/dists/$suite/main/installer-$architecture/current/images/netboot/debian-installer/$architecture"
     [ "$suite" = stretch ] && [ "$efi" = true ] && base_url="$mirror_protocol://$mirror_host$mirror_directory/dists/buster/main/installer-$architecture/current/images/netboot/debian-installer/$architecture"
     [ "$daily_d_i" = true ] && base_url="https://d-i.debian.org/daily-images/$architecture/daily/netboot/debian-installer/$architecture"
-    firmware_url="https://cdimage.debian.org/cdimage/firmware/$suite/current/firmware.cpio.gz"
+    firmware_url="https://cdimage.debian.org/cdimage/unofficial/non-free/firmware/$suite/current/firmware.cpio.gz"
 
     download "$base_url/linux" linux
     download "$base_url/initrd.gz" initrd.gz
@@ -916,8 +915,17 @@ EOF
         echo 'zz_debi=/etc/default/grub.d/zz-debi.cfg; if [ -f "$zz_debi" ]; then . "$zz_debi"; fi' >> /etc/default/grub
         grub_cfg=/boot/grub2/grub.cfg
         grub2-mkconfig -o "$grub_cfg"
+    elif command_exists grub-mkconfig; then
+        tmp=$(mktemp)
+        grep -vF zz_debi /etc/default/grub > "$tmp"
+        cat "$tmp" > /etc/default/grub
+        rm "$tmp"
+        # shellcheck disable=SC2016
+        echo 'zz_debi=/etc/default/grub.d/zz-debi.cfg; if [ -f "$zz_debi" ]; then . "$zz_debi"; fi' >> /etc/default/grub
+        grub_cfg=/boot/grub/grub.cfg
+        grub-mkconfig -o "$grub_cfg"
     else
-        err '找不到“update-grub”或“grub2-mkconfig”命令'
+        err 'Could not find "update-grub" or "grub2-mkconfig" or "grub-mkconfig" command'
     fi
 
     save_grub_cfg="tee -a $grub_cfg"
@@ -927,7 +935,7 @@ mkrelpath=$installer_directory
 [ "$dry_run" = true ] && mkrelpath=/boot
 installer_directory=$(grub-mkrelpath "$mkrelpath" 2> /dev/null) ||
 installer_directory=$(grub2-mkrelpath "$mkrelpath" 2> /dev/null) || {
-    err '找不到“grub-mkrelpath”或“grub2-mkrelpath”命令'
+    err 'Could not find "grub-mkrelpath" or "grub2-mkrelpath" command'
 }
 [ "$dry_run" = true ] && installer_directory="$installer_directory/debian-$suite"
 
